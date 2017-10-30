@@ -32,12 +32,12 @@ class AddressBook {
   private val Contacts = List(
     Contact("1",
       EnglishName("John", Some("Apple"), "Seed"),
-      Map("home" -> Address("1103 Foo St.", "Ventura", "CA", "93003", "USA")),
-      Map("home" -> pn"333-444-3333")),
+      Address("1103 Foo St.", "Ventura", "CA", "93003", "USA"),
+      pn"333-444-3333"),
     Contact("1",
       EnglishName("Bob", None, "Marley"),
-      Map("home" -> Address("1103 Maricopa Ave.", "Ventura", "CA", "93003", "USA")),
-      Map("home" -> pn"435-2039")),
+      Address("1103 Maricopa Ave.", "Ventura", "CA", "93003", "USA"),
+      pn"435-2039"),
   )
 
   def contact(id: String): Option[Contact] =
@@ -46,9 +46,9 @@ class AddressBook {
   def addressesByPartialName(name: String, addressType: String = "home"): Seq[Address] =
     Contacts
       .filter(_.name.name.toLowerCase contains name)
-      .flatMap(_.addresses get addressType)
+      .map(_.address)
 
-  def addresses: List[Contact] = Contacts
+  def contacts: List[Contact] = Contacts
 }
 
 object AddressBook {
@@ -69,7 +69,11 @@ object AddressBook {
 
 case class Picture(width: Int, height: Int, url: Option[String])
 
-case class PhoneNumber(countryCode: Int, areaCode: Int, prefix: Int, suffix: Int)
+case class PhoneNumber(countryCode: Int, areaCode: Int, prefix: Int, suffix: Int) {
+  def formatted = f"(${areaCode}%03d) ${prefix}%03d-${suffix}%04d"
+  def localFormatted = f"${prefix}%03d-${suffix}%04d"
+  def intlFormatted = f"+$countryCode (${areaCode}%03d) ${prefix}%03d-${suffix}%04d"
+}
 
 case class Address(address: String, city: String, state: String, zip: String, country: String)
 
@@ -85,7 +89,7 @@ case class EnglishName(first: String, middle: Option[String], last: String) exte
   def sortName: String = s"$last, $first"
 }
 
-case class Contact(id: String, name: Name, addresses: Map[String, Address], phoneNumbers: Map[String, PhoneNumber]) extends Identifiable {
+case class Contact(id: String, name: Name, address: Address, phoneNumber: PhoneNumber) extends Identifiable {
   def picture(size: Int): Picture =
     Picture(
       width = size,
@@ -94,22 +98,42 @@ case class Contact(id: String, name: Name, addresses: Map[String, Address], phon
 }
 
 object Hello extends App {
-  implicit val PictureType =
+  implicit val PictureType: ObjectType[Unit, Picture] =
     deriveObjectType[Unit, Picture](
       ObjectTypeDescription("The product picture"),
       DocumentField("url", "Picture CDN URL"))
 
-  val IdentifiableType =
+  val IdentifiableType: InterfaceType[Unit, Identifiable] =
     InterfaceType(
       "Identifiable",
       "Entity that can be identified",
       fields[Unit, Identifiable](
         Field("id", StringType, resolve = _.value.id)))
 
-  val AddressType =
+  implicit val AddressType: ObjectType[Unit, Address] =
     deriveObjectType[Unit, Address](
+      ObjectTypeDescription("A Contact's address"))
+
+  implicit val PhoneNumberType: ObjectType[Unit, PhoneNumber] =
+    deriveObjectType[Unit, PhoneNumber](
+      IncludeMethods("formatted", "localFormatted", "intlFormatted"))
+
+  val NameType: InterfaceType[Unit, Name] =
+    InterfaceType(
+      "Name",
+      "An interface for things that represent a name",
+      fields[Unit, Name](
+        Field("name", StringType, resolve = _.value.name),
+        Field("sortName", StringType, resolve = _.value.sortName)))
+
+  implicit val EnglishNameType: ObjectType[Unit, EnglishName] =
+    deriveObjectType[Unit, EnglishName](
+      Interfaces(NameType))
+
+  val ContactType =
+    deriveObjectType[Unit, Contact](
       Interfaces(IdentifiableType),
-      IncludeMethods("picture", "sortName", "name"))
+      IncludeMethods("picture"))
 
   val Id = Argument("id", StringType)
 
@@ -120,14 +144,9 @@ object Hello extends App {
         arguments = Id :: Nil,
         resolve = c => c.ctx.contact(c arg Id)),
 
-      Field("addressByPartialName", ListType(AddressType),
-        description = Some("Return product with specific `id`."),
-        arguments = Id :: Nil,
-        resolve = c => c.ctx.addressByPartialName(c arg Id)),
-
-      Field("addresses", ListType(AddressType),
+      Field("contacts", ListType(ContactType),
         description = Some("Returns all products"),
-        resolve = _.ctx.addresses)
+        resolve = _.ctx.contacts)
     ))
 
   val schema = Schema(QueryType)
