@@ -31,12 +31,24 @@ class AddressBook {
 
   private val Contacts = List(
     Contact("1",
-      EnglishName("John", Some("Apple"), "Seed"),
-      Address("1103 Foo St.", "Ventura", "CA", "93003", "USA"),
+      EnglishName("John", Some("Q"), "Public"),
+      Address("1103 Foo St.", "Somewhere", "CA", "93432", "USA"),
       pn"333-444-3333"),
-    Contact("1",
+    Contact("2",
+      EnglishName("John", None, "Doe"),
+      Address("4321 Bellview Blvd", "Youngstown", "OH", "43923", "USA"),
+      pn"435-2039"),
+    Contact("3",
+      EnglishName("Jane", None, "Gray"),
+      Address("1102 Willow Way", "Seattle", "WA", "10123", "USA"),
+      pn"435-2039"),
+    Contact("4",
       EnglishName("Bob", None, "Marley"),
-      Address("1103 Maricopa Ave.", "Ventura", "CA", "93003", "USA"),
+      Address("1103 Maricopa Ave.", "Thousand Oaks", "CA", "93342", "USA"),
+      pn"435-2039"),
+    Contact("5",
+      EnglishName("Mary", Some("E"), "Williamson"),
+      Address("1102 Birch Ln", "Portland", "OR", "00123", "USA"),
       pn"435-2039"),
   )
 
@@ -71,7 +83,9 @@ case class Picture(width: Int, height: Int, url: Option[String])
 
 case class PhoneNumber(countryCode: Int, areaCode: Int, prefix: Int, suffix: Int) {
   def formatted = f"(${areaCode}%03d) ${prefix}%03d-${suffix}%04d"
+
   def localFormatted = f"${prefix}%03d-${suffix}%04d"
+
   def intlFormatted = f"+$countryCode (${areaCode}%03d) ${prefix}%03d-${suffix}%04d"
 }
 
